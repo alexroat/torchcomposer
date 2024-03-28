@@ -1,4 +1,6 @@
 import wx
+import wx.lib.newevent
+
 from core import *
 import random
 
@@ -12,6 +14,9 @@ dm.setLayer("pool2",lambda x:x,{"x":"conv2"})
 
 dm.setLayer("output",lambda x:x,{"x":"pool2"})
 
+
+
+SomeNewEvent, EVT_LAYER_SELECT = wx.lib.newevent.NewEvent()
 
 class GraphPanel(wx.Panel):
     def __init__(self, parent,module=dm):
@@ -88,6 +93,10 @@ class GraphPanel(wx.Panel):
         for k,v in self.module.layers.items():
             pos=v["pos"]
             if pos[0] <= x <= pos[0] + 50 and pos[1] <= y <= pos[1] + 30:
+                # Create the event
+                evt = SomeNewEvent(id=k, layer=v)
+                # Post the event
+                wx.PostEvent(self, evt)
                 return k
     @property
     def layer(self):
@@ -126,12 +135,15 @@ class GraphPanel(wx.Panel):
                 place(v,layer)
         place("output")
         
+    
+        
 class LayerPanel(wx.Panel):
-    def __init__(self, parent, module):
+    def __init__(self, parent, module,id=None):
         super(LayerPanel, self).__init__(parent)
   
 
         self.module = module
+        self.id=id
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -139,16 +151,35 @@ class LayerPanel(wx.Panel):
         sizer.Add(wx.StaticText(self, label="Name:"), 0, wx.ALL, 5)
         sizer.Add(self.name_text_ctrl, 0, wx.EXPAND|wx.ALL, 5)
 
-        self.function_combobox = wx.ComboBox(self, choices=["ciao","hello"], style=wx.CB_READONLY)
+        self.function_combobox = wx.ComboBox(self, choices=[], style=wx.CB_READONLY)
         self.Bind(wx.EVT_COMBOBOX, self.on_function_change, self.function_combobox)
         sizer.Add(wx.StaticText(self, label="Function:"), 0, wx.ALL, 5)
         sizer.Add(self.function_combobox, 0, wx.EXPAND|wx.ALL, 5)
         self.args_panels = []
         self.SetSizer(sizer)
         
+        self.compile()
+        
         
     def on_function_change(self,event):
         pass
+        
+    @property
+    def layer(self):
+        self.module.layers.get(self.id,None)
+        
+    def setId(self,id):
+        self.id=id
+        self.compile()
+        
+    def compile(self):
+        print(self.id)
+        l=self.layer
+        self.name_text_ctrl.SetValue(self.id or "<NO NAME>")
+        self.function_combobox.SetValue(l["fn"].__name__ if l else "")
+
+
+        
             
 
 class MainFrame(wx.Frame):
@@ -165,10 +196,10 @@ class MainFrame(wx.Frame):
 
         notebook.AddPage(wx.Panel(notebook), "Test")
 
-        sidebar = wx.Panel(splitter)
-        sidebar=LayerPanel(splitter,self.graph_panel.module)
+        self.sidebar = wx.Panel(splitter)
+        self.sidebar=LayerPanel(splitter,self.graph_panel.module)
 
-        splitter.SplitVertically(notebook, sidebar)
+        splitter.SplitVertically(notebook, self.sidebar)
         splitter.SetSashGravity(1)  # Imposta la posizione iniziale dello splitter
 
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -177,6 +208,12 @@ class MainFrame(wx.Frame):
 
         self.Show()
 
+
+        self.graph_panel.Bind(EVT_LAYER_SELECT,self.on_layer_select)
+    
+    def on_layer_select(self,event):
+        self.sidebar.setId(event.id)
+        print(event.layer)
 
 if __name__ == "__main__":
     sys_appearance = wx.SystemSettings.GetAppearance()
