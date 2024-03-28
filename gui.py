@@ -125,15 +125,63 @@ class GraphPanel(wx.Panel):
             for k,v in  self.module.layers[layer]["inputs"].items():
                 place(v,layer)
         place("output")
+        
+class LayerPanel(wx.Panel):
+    def __init__(self, parent, module):
+        super(LayerPanel, self).__init__(parent)
+  
+
+        self.module = module
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.name_text_ctrl = wx.TextCtrl(self)
+        sizer.Add(wx.StaticText(self, label="Name:"), 0, wx.ALL, 5)
+        sizer.Add(self.name_text_ctrl, 0, wx.EXPAND|wx.ALL, 5)
+
+        self.function_combobox = wx.ComboBox(self, choices=["ciao","hello"], style=wx.CB_READONLY)
+        self.Bind(wx.EVT_COMBOBOX, self.on_function_change, self.function_combobox)
+        sizer.Add(wx.StaticText(self, label="Function:"), 0, wx.ALL, 5)
+        sizer.Add(self.function_combobox, 0, wx.EXPAND|wx.ALL, 5)
+        self.args_panels = []
+        self.SetSizer(sizer)
+        
+        
+    def on_function_change(self,event):
+        pass
             
 
 class MainFrame(wx.Frame):
     def __init__(self):
         super(MainFrame, self).__init__(None, title="Graph", size=(800, 600))
-        panel = GraphPanel(self)
+        
+
+        splitter = wx.SplitterWindow(self)
+        splitter.SetMinimumPaneSize(200)  # Imposta la dimensione minima della sidebar
+
+        notebook = wx.Notebook(splitter)
+        self.graph_panel = GraphPanel(notebook)
+        notebook.AddPage(self.graph_panel, "Graph")
+
+        notebook.AddPage(wx.Panel(notebook), "Test")
+
+        sidebar = wx.Panel(splitter)
+        sidebar=LayerPanel(splitter,self.graph_panel.module)
+
+        splitter.SplitVertically(notebook, sidebar)
+        splitter.SetSashGravity(1)  # Imposta la posizione iniziale dello splitter
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(splitter, 1, wx.EXPAND)
+        self.SetSizer(sizer)
+
         self.Show()
 
+
 if __name__ == "__main__":
+    sys_appearance = wx.SystemSettings.GetAppearance()
+    dark = sys_appearance.IsDark()
+    print("dark = %s" % dark)
     app = wx.App()
     frame = MainFrame()
     app.MainLoop()
